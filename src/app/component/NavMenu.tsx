@@ -1,8 +1,10 @@
+// src/app/component/NavMenu.tsx
 "use client";
 import React, { useState } from 'react';
 import { DesktopOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PieChartOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Button, Menu } from 'antd';
+import { useRouter } from 'next/navigation';
 
 type MenuItem = Required<MenuProps>['items'][number];
 
@@ -13,9 +15,18 @@ const items: MenuItem[] = [
 
 const NavMenu: React.FC = () => {
     const [collapsed, setCollapsed] = useState(false);
+    const router = useRouter();
 
     const toggleCollapsed = () => {
         setCollapsed(!collapsed);
+    };
+
+    const handleMenuClick = (e: { key: string }) => {
+        if (e.key === '1') {
+            router.push('/latest-data');
+        } else if (e.key === '2') {
+            router.push('/data-query');
+        }
     };
 
     return (
@@ -30,6 +41,7 @@ const NavMenu: React.FC = () => {
                 theme="dark"
                 inlineCollapsed={collapsed}
                 items={items}
+                onClick={handleMenuClick}
             />
         </div>
     );

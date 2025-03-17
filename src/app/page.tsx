@@ -1,15 +1,7 @@
-"use client";
-import NavMenu from './component/NavMenu';
+// src/app/page.tsx
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-    return (
-        <div className="grid grid-cols-[256px_1fr] min-h-screen">
-            <div className="h-full">
-                <NavMenu />
-            </div>
-            <div>
-                {/* 这里可以放置其他内容 */}
-            </div>
-        </div>
-    );
+    redirect('/latest-data');
+    return null;
 }
