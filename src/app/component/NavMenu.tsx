@@ -38,6 +38,10 @@ const NavMenu: React.FC = () => {
                 defaultSelectedKeys={['1']}
                 defaultOpenKeys={['sub1']}
                 mode="inline"
+                style={{
+                    fontSize: '18px', // 将字体大小设置为 18px，你可以根据需要调整
+                    width: '100%', // 使其占据父元素的全部宽度
+                }}
                 theme="dark"
                 inlineCollapsed={collapsed}
                 items={items}

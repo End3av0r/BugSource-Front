@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { Table, Pagination } from 'antd';
-import { useFetchVulnerabilities } from '../../api/index';
+import { useFetchVulnerabilities } from '@/api/index';
 
 // 定义表格列
 const columns = [
@@ -21,6 +21,11 @@ const columns = [
         key: 'cnTitle',
     },
     {
+        title: '参考链接',
+        dataIndex: 'cnReference',
+        key: 'cnReference',
+    },
+    {
         title: '发布日期',
         dataIndex: 'pubDate',
         key: 'pubDate',
@@ -35,6 +40,7 @@ const columns = [
 const LatestDataPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 15;
+    const totalVulnSize = 1000;
     const { dataSource, loading, error, fetchVulnerabilities } = useFetchVulnerabilities();
 
     useEffect(() => {
@@ -60,7 +66,7 @@ const LatestDataPage: React.FC = () => {
             <Pagination
                 current={currentPage}
                 pageSize={pageSize}
-                total={100} // 这里假设总数据量为100，实际需要从后端获取
+                total={totalVulnSize} // 最新的数据只展示1000条
                 onChange={handlePageChange}
                 showSizeChanger={false} // 禁用用户选择每页显示数量
                 showQuickJumper={false} // 禁用用户快速跳转页码

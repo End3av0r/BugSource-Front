@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import {VulnerabilityInfoVO} from "@/types/VulnerabilityInfoVO";
+import { useState, useCallback } from 'react';
+import { VulnerabilityInfoVO } from "@/types/VulnerabilityInfoVO";
 
 // API返回信息
 interface ApiResponse {
@@ -16,7 +16,7 @@ const useFetchVulnerabilities = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchVulnerabilities = async (offset: number, limit: number) => {
+    const fetchVulnerabilities = useCallback(async (offset: number, limit: number) => {
         setLoading(true);
         setError(null);
         try {
@@ -37,7 +37,7 @@ const useFetchVulnerabilities = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     return { dataSource, loading, error, fetchVulnerabilities };
 };
