@@ -1,8 +1,8 @@
 "use client";
-import React, {useState} from 'react';
-import {DesktopOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PieChartOutlined,} from '@ant-design/icons';
-import type {MenuProps} from 'antd';
-import {Button, Menu} from 'antd';
+import React, { useState } from 'react';
+import { DesktopOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PieChartOutlined } from '@ant-design/icons';
+import type { MenuProps } from 'antd';
+import { Button, Menu } from 'antd';
 
 type MenuItem = Required<MenuProps>['items'][number];
 
@@ -19,8 +19,8 @@ const NavMenu: React.FC = () => {
     };
 
     return (
-        <div style={{ width: 256 }}>
-            <Button type="primary" onClick={toggleCollapsed} style={{ marginBottom: 16 }}>
+        <div style={{ width: 256, height: '100vh', backgroundColor: '#001529' }}>
+            <Button type="primary" onClick={toggleCollapsed} style={{ marginBottom: 16, marginLeft: 16, marginTop: 16 }}>
                 {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             </Button>
             <Menu
