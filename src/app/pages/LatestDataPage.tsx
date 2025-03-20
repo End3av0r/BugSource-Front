@@ -39,7 +39,7 @@ const columns = [
 
 const LatestDataPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 15;
+    const pageSize = 10;
     const totalVulnSize = 1000;
     const { dataSource, loading, error, fetchVulnerabilities } = useFetchVulnerabilities();
 
