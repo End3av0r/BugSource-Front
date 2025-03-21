@@ -39,7 +39,7 @@ const NavMenu: React.FC = () => {
                 defaultOpenKeys={['sub1']}
                 mode="inline"
                 style={{
-                    fontSize: '18px', // 将字体大小设置为 18px，你可以根据需要调整
+                    fontSize: '16px', // 将字体大小设置为 18px，你可以根据需要调整
                     width: '100%', // 使其占据父元素的全部宽度
                 }}
                 theme="dark"
