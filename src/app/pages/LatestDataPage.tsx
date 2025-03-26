@@ -104,9 +104,7 @@ const LatestDataPage: React.FC = () => {
                     top: 20, // 调整模态框距离顶部的距离
                 }}
                 width={600} // 设置模态框的宽度
-                bodyStyle={{
-                    padding: '20px', // 设置模态框内容区域的内边距
-                }}
+                styles={{ body: { padding: '20px' } }}
             >
                 {selectedRecord && (
                     <div className="vulnerability-details">
