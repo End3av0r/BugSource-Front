@@ -86,13 +86,21 @@ const useQuaryVulnerabilities = () => {
             }
 
             const result: ApiResponse2 = await response.json();
+            // 处理各种可能的响应结构
+            let receivedData: VulnerabilityInfoVO[] = [];
+            let totalCount = 0;
+
             if (result.code === '0000') {
-                // 假设后端返回的数据结构中包含 data 和 total
-                setDataSource(result.data.data);
-                setTotalVulnerabilities(result.data.total);
-            } else {
-                throw new Error(result.info || 'Failed to fetch vulnerabilities');
+                if (Array.isArray(result.data)) {
+                    receivedData = result.data;
+                    totalCount = 1;
+                } else {
+                    receivedData = result.data?.data || [];
+                    totalCount = result.data?.total || result.data?.total || 0;
+                }
             }
+            setDataSource(receivedData);
+            setTotalVulnerabilities(totalCount);
         } catch (err) {
             if (err instanceof Error) {
                 setError(err.message);
@@ -105,6 +113,49 @@ const useQuaryVulnerabilities = () => {
     }, []);
 
     return { dataSource, loading, error, totalVulnerabilities, fetchVulnerabilities };
+};
+
+
+// 添加标签请求参数
+interface AddTagRequest {
+    vulnId: number;
+    tag: string;
+}
+
+// 删除标签请求参数
+interface DeleteTagRequest {
+    vulnId: number;
+    tag: string;
+}
+
+// 添加标签
+export const addTag = async (request: AddTagRequest) => {
+    const response = await fetch(`${API_BASE_URL}add_tag`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+    });
+    return await response.json();
+};
+
+// 删除标签
+export const deleteTag = async (request: DeleteTagRequest) => {
+    const response = await fetch(`${API_BASE_URL}delete_tag`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+    });
+    return await response.json();
+};
+
+// 获取漏洞详情
+export const getVulnerabilityDetail = async (vulnId: number) => {
+    const response = await fetch(`${API_BASE_URL}queryId?id=${vulnId}`);
+    return await response.json();
 };
 
 // 导出查询请求函数

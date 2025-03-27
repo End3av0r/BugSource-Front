@@ -11,6 +11,7 @@ type MenuItem = Required<MenuProps>['items'][number];
 const items: MenuItem[] = [
     { key: '1', icon: <PieChartOutlined />, label: '最新数据' },
     { key: '2', icon: <DesktopOutlined />, label: '数据查询' },
+    { key: '3', icon: <DesktopOutlined />, label: '漏洞标签管理' },
 ];
 
 const NavMenu: React.FC = () => {
@@ -26,6 +27,8 @@ const NavMenu: React.FC = () => {
             router.push('/latest-data');
         } else if (e.key === '2') {
             router.push('/data-query');
+        } else {
+            router.push('/vuln-tag-manage');
         }
     };
 
