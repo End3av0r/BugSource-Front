@@ -1,9 +1,11 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { Button, DatePicker, Input, Modal, Pagination, Radio, Table } from 'antd';
+import { Button, DatePicker, Input, Modal, Pagination, Radio, Table, Tag, Input as AntInput, message } from 'antd';
 import { useQuaryVulnerabilities } from '@/api/index';
+import { addTag, deleteTag } from '@/api/index';
 import { VulnerabilityInfoVO } from '@/types/VulnerabilityInfoVO';
 import './QueryDataPage.css';
+import axios from 'axios'; // 确保已安装axios
 
 const { RangePicker } = DatePicker;
 
@@ -69,16 +71,80 @@ const QueryDataPage: React.FC = () => {
         console.log("fetchVulnerabilities:", fetchVulnerabilities);
     }, [fetchVulnerabilities]);
 
+    const [newTag, setNewTag] = useState('');                        // 用于存储新标签输入
+    const [originalTags, setOriginalTags] = useState<string[]>([]);  // 保存原始标签用于比较
+
+    // 打开模态框时记录原始标签
     const handleShowModal = (record: VulnerabilityInfoVO) => {
         setSelectedRecord(record);
+        setOriginalTags([...(record.tag || [])]);
         setOpen(true);
     };
 
-    const handleOk = () => {
-        setOpen(false);
+    // 确认按钮处理
+    const handleOk = async () => {
+        if (!selectedRecord) {
+            setOpen(false);
+            return;
+        }
+
+        // 检查标签是否有变化
+        const currentTags = selectedRecord.tag || [];
+        const tagsChanged = 
+            currentTags.length !== originalTags.length ||
+            currentTags.some(tag => !originalTags.includes(tag)) ||
+            originalTags.some(tag => !currentTags.includes(tag));
+
+        if (tagsChanged) {
+            try {
+                // 找出新增的标签
+                const addedTags = currentTags.filter(tag => !originalTags.includes(tag));
+                // 找出删除的标签
+                const removedTags = originalTags.filter(tag => !currentTags.includes(tag));
+
+                // 批量处理新增标签
+                const addPromises = addedTags.map(tag => 
+                    axios.post('http://localhost:8091/api/vuln/add_tag', {
+                        vulnId: selectedRecord.id,
+                        tag: tag
+                    })
+                );
+
+                // 批量处理删除标签
+                const removePromises = removedTags.map(tag =>
+                    axios.post('http://localhost:8091/api/vuln/delete_tag', {
+                        vulnId: selectedRecord.id,
+                        tag: tag
+                    })
+                );
+
+                // 等待所有请求完成
+                await Promise.all([...addPromises, ...removePromises]);
+
+                message.success('标签更新成功');
+                setOpen(false);
+
+                // 刷新整个页面
+                window.location.reload();
+            } catch (error) {
+                message.error('标签更新失败');
+                console.error('更新标签失败:', error);
+                // 可以选择不关闭模态框，让用户决定是否重试
+                return;
+            }
+        } else {
+            setOpen(false);
+        }
     };
 
+    // 取消操作 - 恢复原始状态
     const handleCancel = () => {
+        if (selectedRecord) {
+        setSelectedRecord({
+            ...selectedRecord,
+            tag: [...originalTags] // 恢复原始标签
+        });
+        }
         setOpen(false);
     };
 
@@ -133,6 +199,42 @@ const QueryDataPage: React.FC = () => {
         });
         setCurrentPage(1);
     };
+
+    // 添加标签
+    const handleAddTag = () => {
+        if (!newTag.trim()) {
+            message.warning('请输入标签内容');
+            return;
+        }
+
+        if (selectedRecord) {
+            const updatedTags = [...(selectedRecord.tag || []), newTag.trim()];
+            setSelectedRecord({
+                ...selectedRecord,
+                tag: updatedTags
+            });
+            setNewTag('');
+        }
+    };
+
+    // 删除标签
+    const handleRemoveTag = (tagToRemove: string) => {
+        if (selectedRecord) {
+            const updatedTags = (selectedRecord.tag || []).filter(tag => tag !== tagToRemove);
+            setSelectedRecord({
+                ...selectedRecord,
+                tag: updatedTags
+            });
+        }
+    };
+
+    // 处理标签输入键事件
+    const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleAddTag();
+        }
+    };
+
 
     return (
         <div className="query-data-page">
@@ -294,14 +396,39 @@ const QueryDataPage: React.FC = () => {
                             <span className="detail-label">标签:</span>
                             <div className="tag-container">
                                 {selectedRecord.tag?.length > 0 ? (
-                                    selectedRecord.tag.map((tag, index) => (
-                                        <span key={index} className="tag">
-                      {tag}
-                    </span>
-                                    ))
+                                    <>
+                                        {selectedRecord.tag.map((tag, index) => (
+                                            <Tag 
+                                                key={index} 
+                                                closable 
+                                                onClose={() => handleRemoveTag(tag)}
+                                                className="tag"
+                                            >
+                                                {tag}
+                                            </Tag>
+                                        ))}
+                                    </>
                                 ) : (
                                     <span className="detail-value">无</span>
                                 )}
+
+                                <div className="tag-input-container">
+                                    <AntInput
+                                        value={newTag}
+                                        onChange={(e) => setNewTag(e.target.value)}
+                                        onKeyDown={handleTagInputKeyDown}
+                                        placeholder="输入新标签"
+                                        size="small"
+                                        style={{ width: 120, marginRight: 8 }}
+                                    />
+                                    <Button 
+                                        size="small" 
+                                        onClick={handleAddTag}
+                                        type="primary"
+                                    >
+                                        添加
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>

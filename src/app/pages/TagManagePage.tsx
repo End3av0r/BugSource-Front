@@ -1,20 +1,21 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Table, Tag, message, Card, Form, Modal } from 'antd';
+import { Button, Input, Table, Tag, message, Card, Form, Modal, Select } from 'antd';
 import { addTag, deleteTag, getVulnerabilityDetail } from '@/api/index';
 import { VulnerabilityInfoVO } from '@/types/VulnerabilityInfoVO';
+
+const { Option } = Select;
 
 const TagManagePage: React.FC = () => {
     const [vulnId, setVulnId] = useState<string>('');
     const [open, setOpen] = useState(false);
     const [vulnerability, setVulnerability] = useState<VulnerabilityInfoVO | null>(null);
+    const [originalVulnerability, setOriginalVulnerability] = useState<VulnerabilityInfoVO | null>(null); // 保存原始数据
     const [loading, setLoading] = useState<boolean>(false);
     const [newTag, setNewTag] = useState<string>('');
     const [confirmLoading, setConfirmLoading] = useState<boolean>(false);
-    const [deleteTagModal, setDeleteTagModal] = useState<{ visible: boolean; tag: string | null }>({
-        visible: false,
-        tag: null,
-    });
+    const [isEditing, setIsEditing] = useState<boolean>(false);
+    const [allTags, setAllTags] = useState<string[]>(['高危', '中危', '低危', 'SQL注入', 'XSS', 'CSRF', 'RCE']);
 
     // 查询漏洞详情
     const fetchVulnerability = async () => {
@@ -28,6 +29,7 @@ const TagManagePage: React.FC = () => {
             const response = await getVulnerabilityDetail(Number(vulnId));
             if (response.code === '0000') {
                 setVulnerability(response.data);
+                setOriginalVulnerability({...response.data}); // 深拷贝保存原始数据
             } else {
                 message.error(response.info || '获取漏洞详情失败');
             }
@@ -38,7 +40,7 @@ const TagManagePage: React.FC = () => {
         }
     };
 
-    // 添加标签
+    // 添加新标签到选项
     const handleAddTag = async () => {
         if (!newTag.trim()) {
             message.warning('请输入标签内容');
@@ -59,6 +61,10 @@ const TagManagePage: React.FC = () => {
 
             if (response.code === '0000') {
                 message.success('标签添加成功');
+                // 更新标签选项
+                if (!allTags.includes(newTag.trim())) {
+                    setAllTags([...allTags, newTag.trim()]);
+                }
                 // 刷新数据
                 await fetchVulnerability();
                 setNewTag('');
@@ -73,40 +79,72 @@ const TagManagePage: React.FC = () => {
         }
     };
 
-    // 显示删除标签确认框
-    const showDeleteTagModal = (tag: string) => {
-        setDeleteTagModal({
-            visible: true,
-            tag,
-        });
-    };
+    // 保存标签修改
+    const handleSaveTags = async () => {
+        if (!vulnerability || !originalVulnerability) return;
 
-    // 处理删除标签
-    const handleDeleteTag = async () => {
-        if (deleteTagModal.tag && vulnerability) {
-            try {
-                const response = await deleteTag({
+        // 检查是否有变化
+        const currentTags = vulnerability.tag || [];
+        const originalTags = originalVulnerability.tag || [];
+        
+        // 如果没有变化直接返回
+        if (
+            currentTags.length === originalTags.length &&
+            currentTags.every(tag => originalTags.includes(tag)) &&
+            originalTags.every(tag => currentTags.includes(tag))
+        ) {
+            message.info('没有检测到标签变更');
+            setIsEditing(false);
+            return;
+        }
+
+        setConfirmLoading(true);
+        try {
+            // 找出新增的标签
+            const addedTags = currentTags.filter(tag => !originalTags.includes(tag));
+            // 找出删除的标签
+            const removedTags = originalTags.filter(tag => !currentTags.includes(tag));
+
+            // 批量处理新增标签
+            const addPromises = addedTags.map(tag => 
+                addTag({
                     vulnId: vulnerability.id,
-                    tag: deleteTagModal.tag,
-                });
+                    tag: tag
+                })
+            );
 
-                if (response.code === '0000') {
-                    message.success('标签删除成功');
-                    await fetchVulnerability();
-                } else {
-                    message.error(response.info || '标签删除失败');
-                }
-            } catch (error) {
-                message.error('标签删除失败');
-            } finally {
-                setDeleteTagModal({ visible: false, tag: null });
+            // 批量处理删除标签
+            const deletePromises = removedTags.map(tag =>
+                deleteTag({
+                    vulnId: vulnerability.id,
+                    tag: tag
+                })
+            );
+
+            // 等待所有请求完成
+            await Promise.all([...addPromises, ...deletePromises]);
+            
+            message.success('标签更新成功');
+            setIsEditing(false);
+            // 刷新数据
+            await fetchVulnerability();
+        } catch (error) {
+            message.error('标签更新失败');
+            // 恢复原始数据
+            if (originalVulnerability) {
+                setVulnerability({...originalVulnerability});
             }
+        } finally {
+            setConfirmLoading(false);
         }
     };
 
-    // 取消删除标签
-    const handleCancelDeleteTag = () => {
-        setDeleteTagModal({ visible: false, tag: null });
+    // 取消编辑
+    const handleCancelEdit = () => {
+        if (originalVulnerability) {
+            setVulnerability({...originalVulnerability}); // 恢复原始数据
+        }
+        setIsEditing(false);
     };
 
     // 表格列定义
@@ -130,21 +168,103 @@ const TagManagePage: React.FC = () => {
             title: '标签',
             dataIndex: 'tag',
             key: 'tag',
-            render: (tags: string[]) => (
+            render: (tags: string[], record: VulnerabilityInfoVO) => (
                 <div onClick={(e) => e.stopPropagation()}>
-                    {tags?.map((tag, index) => (
-                        <Tag
-                            key={index}
-                            closable
-                            onClose={(e) => {
-                                e.stopPropagation();
-                                showDeleteTagModal(tag); // 显示删除标签确认框
+                    {isEditing ? (
+                        <Select
+                            mode="tags"
+                            style={{ width: '100%' }}
+                            placeholder="请选择或输入标签"
+                            value={vulnerability?.tag || []}
+                            onChange={(value) => {
+                                if (vulnerability) {
+                                    setVulnerability({
+                                        ...vulnerability,
+                                        tag: value
+                                    });
+                                }
                             }}
-                            style={{ marginBottom: 4, marginRight: 4 }}
+                            dropdownRender={(menu) => (
+                                <>
+                                    {menu}
+                                    <div style={{ padding: '8px', display: 'flex', gap: '8px' }}>
+                                        <Input
+                                            value={newTag}
+                                            onChange={(e) => setNewTag(e.target.value)}
+                                            onPressEnter={() => {
+                                                if (newTag.trim() && !allTags.includes(newTag.trim())) {
+                                                    setAllTags([...allTags, newTag.trim()]);
+                                                    if (vulnerability) {
+                                                        setVulnerability({
+                                                            ...vulnerability,
+                                                            tag: [...(vulnerability.tag || []), newTag.trim()]
+                                                        });
+                                                    }
+                                                    setNewTag('');
+                                                }
+                                            }}
+                                            placeholder="输入新标签"
+                                        />
+                                        <Button
+                                            type="link"
+                                            size="small"
+                                            onClick={() => {
+                                                if (newTag.trim() && !allTags.includes(newTag.trim())) {
+                                                    setAllTags([...allTags, newTag.trim()]);
+                                                    if (vulnerability) {
+                                                        setVulnerability({
+                                                            ...vulnerability,
+                                                            tag: [...(vulnerability.tag || []), newTag.trim()]
+                                                        });
+                                                    }
+                                                    setNewTag('');
+                                                }
+                                            }}
+                                        >
+                                            添加
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
                         >
-                            {tag}
-                        </Tag>
-                    ))}
+                            {allTags.map((tag) => (
+                                <Option key={tag} value={tag}>
+                                    {tag}
+                                </Option>
+                            ))}
+                        </Select>
+                    ) : (
+                        <div>
+                            {tags?.map((tag, index) => (
+                                <Tag key={index} style={{ marginBottom: 4, marginRight: 4 }}>
+                                    {tag}
+                                </Tag>
+                            ))}
+                            {(!tags || tags.length === 0) && <span>暂无标签</span>}
+                        </div>
+                    )}
+                </div>
+            ),
+        },
+        {
+            title: '操作',
+            key: 'action',
+            render: (_, record: VulnerabilityInfoVO) => (
+                <div>
+                    {isEditing ? (
+                        <>
+                            <Button type="link" onClick={handleSaveTags} loading={confirmLoading}>
+                                保存
+                            </Button>
+                            <Button type="link" onClick={handleCancelEdit}>
+                                取消
+                            </Button>
+                        </>
+                    ) : (
+                        <Button type="link" onClick={() => setIsEditing(true)}>
+                            编辑
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -191,24 +311,34 @@ const TagManagePage: React.FC = () => {
             >
                 <Form layout="vertical">
                     <Form.Item label="新标签">
-                        <Input
-                            value={newTag}
-                            onChange={(e) => setNewTag(e.target.value)}
-                            placeholder="输入新标签内容"
-                        />
+                        <Select
+                            showSearch
+                            mode="tags"
+                            style={{ width: '100%' }}
+                            placeholder="请选择或输入标签"
+                            value={newTag ? [newTag] : []}
+                            onChange={(value) => setNewTag(value[value.length - 1] || '')}
+                            dropdownRender={(menu) => (
+                                <>
+                                    {menu}
+                                    <div style={{ padding: '8px', display: 'flex', gap: '8px' }}>
+                                        <Input
+                                            value={newTag}
+                                            onChange={(e) => setNewTag(e.target.value)}
+                                            placeholder="输入新标签"
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        >
+                            {allTags.map((tag) => (
+                                <Option key={tag} value={tag}>
+                                    {tag}
+                                </Option>
+                            ))}
+                        </Select>
                     </Form.Item>
                 </Form>
-            </Modal>
-
-            {/* 删除标签确认框 */}
-            <Modal
-                title="确认删除标签"
-                open={deleteTagModal.visible}
-                onOk={handleDeleteTag}
-                onCancel={handleCancelDeleteTag}
-                confirmLoading={confirmLoading}
-            >
-                <p>确定要删除标签 "{deleteTagModal.tag}" 吗？</p>
             </Modal>
         </div>
     );
